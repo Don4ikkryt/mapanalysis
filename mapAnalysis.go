@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
+
+	"github.com/Don4ikkryt/readcoordinates"
 )
 
 var (
@@ -12,7 +15,12 @@ var (
 
 func main() {
 	parseFlags()
+	points, propotion := readcoordinates.GetCoordinatesAndPropotion(sourceFolder, filteredFolder)
 
+	fmt.Println(propotion)
+	for _, value := range points {
+		fmt.Println(value)
+	}
 }
 func parseFlags() {
 	flag.StringVar(&sourceFolder, "source_folder", "", "Path to the folder with photos")
