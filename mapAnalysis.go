@@ -13,6 +13,30 @@ var (
 	maxDistanceBetweenPoints int64
 )
 
+const maxLenght int16 = 200
+const maxWidth int16 = 200
+
+type pdfMap struct {
+	points    []readcoordinates.Point
+	propotion float64
+	width     int16
+	lenght    int16
+}
+
+func newPoint(points []readcoordinates.Point, propotion float64) *pdfMap {
+	m := pdfMap{propotion: propotion, points: points, lenght: maxLenght}
+	return &m
+}
+func (m *pdfMap) defineWidth() {
+	m.width = int16(float64(m.lenght)/m.propotion) + 2
+	if m.width > maxWidth {
+		m.width = int16(float64(m.width)*m.propotion) + 1
+
+	} else {
+		return
+	}
+
+}
 func main() {
 	parseFlags()
 	points, propotion := readcoordinates.GetCoordinatesAndPropotion(sourceFolder, filteredFolder)
