@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/Don4ikkryt/readcoordinates"
 	"github.com/jung-kurt/gofpdf"
@@ -16,8 +17,8 @@ var (
 	maxDistanceBetweenPoints int64
 )
 
-const maxLenght int16 = 200
-const maxWidth int16 = 200
+const maxLenght int16 = 150
+const maxWidth int16 = 150
 
 type mmPoint struct {
 	x int16
@@ -43,13 +44,19 @@ func (m *pdfMap) defineCentreInMM() {
 }
 func (m *pdfMap) defineCentreInPoint() {
 	m.centreInPoint.Latitude = readcoordinates.CoordinateDiffernce(readcoordinates.Northest.Latitude, readcoordinates.Southest.Latitude)
+	i := 0
 	for _, value := range m.centreInPoint.Latitude {
 		value /= 2
+		value += readcoordinates.Southest.Latitude[i]
+		i++
 	}
 
 	m.centreInPoint.Longtitude = readcoordinates.CoordinateDiffernce(readcoordinates.Westest.Longtitude, readcoordinates.Eastest.Longtitude)
+	j := 0
 	for _, value := range m.centreInPoint.Longtitude {
 		value /= 2
+		value += readcoordinates.Westest.Longtitude[i]
+		j++
 	}
 }
 func (m *pdfMap) defineScale() {
@@ -77,7 +84,10 @@ func main() {
 	map1.defineCentreInMM()
 	map1.defineCentreInPoint()
 	map1.defineScale()
-	
+
+	pdfFile := openPDFFile()
+	createRectangle(pdfFile, map1.lenght, map1.width)
+	closePDFFile(pdfFile)
 
 }
 func parseFlags() {
@@ -96,17 +106,34 @@ func toOdd(number int16) int16 {
 	}
 }
 
-func createPDFFile(f *gofpdf.Fpdf) {
+func closePDFFile(f *gofpdf.Fpdf) {
 	var i int = 1
-	var filename string = "map"
+	var filename string
 	for {
-		if _, err := os.Stat(mapFolder + "\\" + filename + string(i)); os.IsNotExist(err) {
+		filename = mapFolder + "\\map" + strconv.Itoa(i)
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			break
 		}
 		i++
 	}
-	err := f.OutputFileAndClose(mapFolder + "\\" + filename + string(i))
+
+	err := f.OutputFileAndClose(filename)
 	if err != nil {
+		fmt.Println(1)
 		fmt.Println("err")
 	}
+}
+func openPDFFile() (f *gofpdf.Fpdf) {
+	f = gofpdf.New("P", "mm", "A4", "")
+	f.AddPage()
+	return
+}
+func createRectangle(f *gofpdf.Fpdf, lenght int16, width int16) {
+	f.SetFillColor(0, 153, 255)
+	f.Rect(25, 25, float64(lenght), float64(width), "F")
+}
+func (m *pdfMap) ConvertFromPointsToMMPoint(point readcoordinates.Point) (newPoint mmPoint) {
+	DistanceInMetersLatitude := readcoordinates.ConvertFromCoordinatesToMeterLatitude(readcoordinates.CoordinateDiffernce(point.Latitude, m.centreInPoint.Latitude))
+	DistanceInMetersLongtitude := readcoordinates.ConvertFromCoordinatesToMeterLongtitude(readcoordinates.CoordinateDiffernce(point.Longtitude, m.centreInPoint.Longtitude), &point, &m.centreInPoint)
+
 }
