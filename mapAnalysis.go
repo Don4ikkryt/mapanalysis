@@ -19,16 +19,41 @@ var (
 const maxLenght int16 = 200
 const maxWidth int16 = 200
 
+type mmPoint struct {
+	x int16
+	y int16
+}
 type pdfMap struct {
-	points    []readcoordinates.Point
-	propotion float64
-	width     int16
-	lenght    int16
+	points        []readcoordinates.Point
+	propotion     float64
+	width         int16
+	lenght        int16
+	scale         float64
+	centreInMM    mmPoint
+	centreInPoint readcoordinates.Point
 }
 
 func newMap(points []readcoordinates.Point, propotion float64) *pdfMap {
 	m := pdfMap{propotion: propotion, points: points, lenght: maxLenght}
 	return &m
+}
+func (m *pdfMap) defineCentreInMM() {
+	m.centreInMM.x = int16(m.lenght + 1/2)
+	m.centreInMM.y = int16(m.width + 1/2)
+}
+func (m *pdfMap) defineCentreInPoint() {
+	m.centreInPoint.Latitude = readcoordinates.CoordinateDiffernce(readcoordinates.Northest.Latitude, readcoordinates.Southest.Latitude)
+	for _, value := range m.centreInPoint.Latitude {
+		value /= 2
+	}
+
+	m.centreInPoint.Longtitude = readcoordinates.CoordinateDiffernce(readcoordinates.Westest.Longtitude, readcoordinates.Eastest.Longtitude)
+	for _, value := range m.centreInPoint.Longtitude {
+		value /= 2
+	}
+}
+func (m *pdfMap) defineScale() {
+	m.scale = readcoordinates.ConvertFromCoordinatesToMeterLatitude(readcoordinates.CoordinateDiffernce(readcoordinates.Northest.Latitude, readcoordinates.Southest.Latitude)) / float64(m.width)
 }
 func (m *pdfMap) defineWidthAndLenght() {
 	m.width = int16(float64(m.lenght) / m.propotion)
@@ -49,6 +74,10 @@ func main() {
 
 	map1 := newMap(points, propotion)
 	map1.defineWidthAndLenght()
+	map1.defineCentreInMM()
+	map1.defineCentreInPoint()
+	map1.defineScale()
+	
 
 }
 func parseFlags() {
