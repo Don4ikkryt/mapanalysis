@@ -16,6 +16,7 @@ var (
 	mapFolder                string
 	filteredFolder           string
 	maxDistanceBetweenPoints float64
+	amountOfPhotoesInRadius  int64
 )
 
 const (
@@ -25,6 +26,16 @@ const (
 	degreesInCircle         float64 = 360
 	rectIndentionX          float64 = 25
 	rectIndentionY          float64 = 25
+	basicPointR             int     = 0
+	basicPointG             int     = 0
+	basicPointB             int     = 0
+	NotValidPointR          int     = 255
+	NotValidPointG          int     = 0
+	NotValidPointB          int     = 0
+	colorOfRectangleR       int     = 0
+	colorOfRectangleG       int     = 153
+	colorOfRectangleB       int     = 255
+	radiusOfPoint           float64 = 0.5
 )
 
 type mmPoint struct {
@@ -87,8 +98,8 @@ func (m *pdfMap) setCentreInMM() {
 }
 func (m *pdfMap) drawPoint(point *mmPoint) {
 	m.pdfFile.SetFillColor(point.r, point.g, point.b)
-	m.pdfFile.SetLineWidth(0.1)
-	m.pdfFile.Circle(point.x, point.y, 2, "F")
+	m.pdfFile.SetLineWidth(0.02)
+	m.pdfFile.Circle(point.x, point.y, radiusOfPoint, "F")
 }
 func (m *pdfMap) setMap() {
 
@@ -99,6 +110,7 @@ func (m *pdfMap) setMap() {
 }
 func (m *pdfMap) DiffBetweenCentreAndPoint(point *readcoordinates.Point) *mmPoint {
 	var newMMPoint mmPoint
+	newMMPoint.setColor(basicPointR, basicPointG, basicPointB)
 	newMMPoint.x = convertLongtitudeToMeters(float64(point.Longtitude-m.centreInPoint.Longtitude), point, &m.centreInPoint)*m.scale + m.centreInMM.x
 	newMMPoint.y = convertLatitudeToMeters(float64(point.Latitude-m.centreInPoint.Latitude))*m.scale + m.centreInMM.y
 
@@ -107,16 +119,13 @@ func (m *pdfMap) DiffBetweenCentreAndPoint(point *readcoordinates.Point) *mmPoin
 
 func (m *pdfMap) drawAllPoints(maxDistance float64) {
 
-	i := 1
 	for _, value := range m.points {
-
-		fmt.Print("fffffffffffffffffffffffffffffffffffffff")
-		fmt.Println(i)
+		fmt.Println(value.Filename)
 		point := m.DiffBetweenCentreAndPoint(&value)
 		distance := m.distanceBetweenPoints(&value)
-		ifNeighbours(point, distance, maxDistance)
+		ifNeighbours(point, distance, maxDistance, amountOfPhotoesInRadius)
 		m.drawPoint(point)
-		i++
+
 	}
 }
 func main() {
@@ -124,7 +133,7 @@ func main() {
 	points := readcoordinates.GetPoints(sourceFolder, filteredFolder)
 	map1 := newMap(points, getPropotion())
 	map1.setMap()
-	fmt.Println(map1.scale)
+
 	map1.pdfFile = openPDFFile()
 
 	createRectangle(map1.pdfFile, map1.lenght, map1.width)
@@ -137,6 +146,7 @@ func parseFlags() {
 	flag.StringVar(&filteredFolder, "filtered_folder", "", "Path to the folder with filtered (unsupported format/no exif data) files")
 	flag.Float64Var(&maxDistanceBetweenPoints, "max_distance_between_points", 0, "Maximum allowed distance between two points, where two photoes were taken")
 	flag.StringVar(&mapFolder, "map_folder", "", "Folder where PDF file will be created")
+	flag.Int64Var(&amountOfPhotoesInRadius, "amount_of_photoes_in_radius", 0, "Amount of photoes in the radius to validate it")
 
 	flag.Parse()
 }
@@ -164,7 +174,7 @@ func openPDFFile() (f *gofpdf.Fpdf) {
 	return
 }
 func createRectangle(f *gofpdf.Fpdf, lenght int16, width int16) {
-	f.SetFillColor(0, 153, 255)
+	f.SetFillColor(colorOfRectangleR, colorOfRectangleG, colorOfRectangleB)
 	f.Rect(rectIndentionX, rectIndentionY, float64(lenght)+5, float64(width)+5, "F")
 }
 func convertLatitudeToMeters(coordinates float64) (meters float64) {
@@ -202,80 +212,31 @@ func getPropotion() (propotion float64) {
 	propotion = lenght / width
 	return
 }
-func (m *pdfMap) distanceBetweenPoints(point1 *readcoordinates.Point) [][2]float64 {
-	pointDiff := make([][2]float64, len(m.points))
-	var coordinateDiff [2]float64
+func (m *pdfMap) distanceBetweenPoints(point1 *readcoordinates.Point) []float64 {
+	pointDistance := make([]float64, 0)
+
 	for _, point2 := range m.points {
 
 		if point1.Filename != point2.Filename {
-			coordinateDiff[0] = convertLongtitudeToMeters(float64(point1.Longtitude-point2.Longtitude), point1, &point2)
-			coordinateDiff[1] = convertLatitudeToMeters(float64(point1.Latitude - point2.Latitude))
-			pointDiff = append(pointDiff, coordinateDiff)
+			longtitudeDiff := convertLongtitudeToMeters(float64(point1.Longtitude-point2.Longtitude), point1, &point2)
+			latitudeDiff := convertLatitudeToMeters(float64(point1.Latitude - point2.Latitude))
+			pointDistance = append(pointDistance, math.Sqrt(longtitudeDiff*longtitudeDiff+latitudeDiff*latitudeDiff))
 		}
 
 	}
-	return pointDiff
+	return pointDistance
 }
-func ifNeighbours(point *mmPoint, coordinatedDiff [][2]float64, maxDistance float64) {
-	ifExtreme1, ifExtreme2, ifExtreme3, ifExtreme4 := 0, 0, 0, 0
-	ifNeighbour1, ifNeighbour2, ifNeighbour3, ifNeighbour4 := false, false, false, false
-
-	for _, difference := range coordinatedDiff {
-		distance := math.Sqrt(difference[0]*difference[0] + difference[1]*difference[1])
-		fmt.Println(distance)
-
-		switch {
-		case difference[0] == 0 && difference[1] == 0:
-
-			continue
-		case difference[0] >= 0 && difference[1] >= 0:
-			ifExtreme1++
-			if math.Abs(distance) <= maxDistance {
-				ifNeighbour1 = true
-
-			}
-
-		case difference[0] >= 0 && difference[1] <= 0:
-			ifExtreme2++
-			if math.Abs(distance) <= maxDistance {
-
-				ifNeighbour2 = true
-			}
-
-		case difference[0] <= 0 && difference[1] >= 0:
-			ifExtreme3++
-			if math.Abs(distance) <= maxDistance {
-
-				ifNeighbour3 = true
-			}
-		case difference[0] <= 0 && difference[1] <= 0:
-			ifExtreme4++
-			if math.Abs(distance) <= maxDistance {
-				ifNeighbour4 = true
-
-			}
-
-		}
-
-	}
-	if ifExtreme1 != 0 {
-		if !ifNeighbour1 {
-			point.setColor(255, 0, 0)
+func ifNeighbours(point *mmPoint, pointDiff []float64, maxDistance float64, amoutOfPhotoes int64) {
+	var i int64 = 0
+	for _, value := range pointDiff {
+		fmt.Println(value)
+		if value <= maxDistance {
+			i++
 		}
 	}
-	if ifExtreme2 != 0 {
-		if !ifNeighbour2 {
-			point.setColor(255, 0, 0)
-		}
+
+	if i < amoutOfPhotoes {
+		point.setColor(NotValidPointR, NotValidPointG, NotValidPointB)
 	}
-	if ifExtreme3 != 0 {
-		if !ifNeighbour3 {
-			point.setColor(255, 0, 0)
-		}
-	}
-	if ifExtreme4 != 0 {
-		if !ifNeighbour4 {
-			point.setColor(255, 0, 0)
-		}
-	}
+
 }
