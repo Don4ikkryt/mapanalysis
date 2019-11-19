@@ -135,7 +135,6 @@ func main() {
 	map1.setMap()
 
 	map1.pdfFile = openPDFFile()
-
 	createRectangle(map1.pdfFile, map1.lenght, map1.width)
 	map1.drawAllPoints(maxDistanceBetweenPoints)
 	closePDFFile(map1.pdfFile)
@@ -229,7 +228,6 @@ func (m *pdfMap) distanceBetweenPoints(point1 *readcoordinates.Point) []float64 
 func ifNeighbours(point *mmPoint, pointDiff []float64, maxDistance float64, amoutOfPhotoes int64) {
 	var i int64 = 0
 	for _, value := range pointDiff {
-		fmt.Println(value)
 		if value <= maxDistance {
 			i++
 		}
